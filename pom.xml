@@ -4,7 +4,7 @@
 
     <groupId>com.github.ContainerSolutions</groupId>
   <artifactId>minimesos-maven-plugin</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.0-ak</version>
   <packaging>maven-plugin</packaging>
 
   <name>minimesos Maven Plugin</name>
@@ -41,7 +41,7 @@
     <dependency>
       <groupId>com.containersol.minimesos</groupId>
       <artifactId>minimesos</artifactId>
-      <version>0.14.0</version>
+      <version>0.14.0-ak</version>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
