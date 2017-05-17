@@ -1,5 +1,7 @@
 package com.containersolutions.minimesos;
 
+import com.containersol.minimesos.cluster.MesosCluster;
+import com.containersol.minimesos.mesos.MesosClusterContainersFactory;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;

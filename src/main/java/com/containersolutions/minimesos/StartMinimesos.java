@@ -4,7 +4,7 @@ import com.containersol.minimesos.MinimesosException;
 import com.containersol.minimesos.cluster.MesosCluster;
 import com.containersol.minimesos.config.ClusterConfig;
 import com.containersol.minimesos.config.ConfigParser;
-import com.containersol.minimesos.mesos.ClusterArchitecture;
+import com.containersol.minimesos.mesos.MesosClusterContainersFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -32,38 +32,39 @@ public class StartMinimesos extends AbstractMinimesosMojo
 
     public void execute() throws MojoExecutionException
     {
-        ClusterArchitecture.Builder configBuilder;
+        MesosClusterContainersFactory mesosClusterFactory = new MesosClusterContainersFactory();
+        MesosCluster cluster = null;
         if (configFile == null) {
             getLog().info("Using default configuration");
-            configBuilder = new ClusterArchitecture.Builder();
-            configBuilder.withZooKeeper();
-            configBuilder.withMaster();
-            configBuilder.withAgent();
+            ClusterConfig config = new ClusterConfig();
+            cluster = mesosClusterFactory.createMesosCluster(config);
         } else {
             getLog().info("Loading configuration file...");
-            configBuilder = parseConfigFile();
+            cluster = mesosClusterFactory.createMesosCluster(parseConfigFile());
         }
 
-        startMinimesos(configBuilder.build());
-
-        MesosCluster mesosCluster = getMinimesosCluster().orElseThrow(() -> new IllegalStateException("Cannot obtain reference to minimesos cluster."));
-        writeProperties(mesosCluster);
+        startMinimesos(cluster);
+        writeProperties(cluster);
     }
 
     private void writeProperties(MesosCluster mesosCluster) {
         getLog().info("Writing properties");
-        project.getProperties().setProperty("zookeeper_ip", mesosCluster.getZkContainer().getIpAddress());
-        project.getProperties().setProperty("mesos_master_ip", mesosCluster.getMasterContainer().getIpAddress());
+        project.getProperties().setProperty("zookeeper_ip", mesosCluster.getZooKeeper().getIpAddress());
+        project.getProperties().setProperty("mesos_master_ip", mesosCluster.getMaster().getIpAddress());
         getLog().debug(project.getProperties().entrySet().stream().map(entry -> entry.getKey().toString() + "=" + entry.getValue().toString()).collect(Collectors.joining("\n")));
     }
 
-    private ClusterArchitecture.Builder parseConfigFile() {
-        try {
-            ClusterConfig clusterConfig = new ConfigParser().parse(FileUtils.readFileToString(configFile));
-            return ClusterArchitecture.Builder.createCluster(clusterConfig);
-        } catch (Exception e) {
-            String msg = String.format("Failed to load cluster configuration from %s: %s", configFile.getPath(), e.getMessage());
-            throw new MinimesosException(msg, e);
+    private ClusterConfig parseConfigFile() {
+        if (configFile != null) {
+            ConfigParser configParser = new ConfigParser();
+            try {
+                return configParser.parse(FileUtils.readFileToString(configFile));
+            } catch (Exception e) {
+                String msg = String.format("Failed to load cluster configuration from %s: %s", configFile, e.getMessage());
+                throw new MinimesosException(msg, e);
+            }
         }
+        throw new MinimesosException("No minimesosFile found in current directory. Please generate one with 'minimesos init'");
     }
+
 }

@@ -1,38 +1,42 @@
 package com.containersolutions.minimesos;
 
+import com.containersol.minimesos.cluster.ClusterRepository;
 import com.containersol.minimesos.cluster.MesosCluster;
-import com.containersol.minimesos.mesos.ClusterArchitecture;
+import com.containersol.minimesos.mesos.MesosClusterContainersFactory;
 import org.apache.maven.plugin.AbstractMojo;
 
-import java.util.Optional;
+import java.util.logging.Logger;
 
 public abstract class AbstractMinimesosMojo extends AbstractMojo {
+    private static final Logger LOGGER = Logger.getAnonymousLogger();
+
     public static final String MESOS_CLUSTER_KEY = "mesos_cluster";
-    private final MinimesosState<MesosCluster> mesosClusterState;
+    protected final ClusterRepository repository = new ClusterRepository();
 
     public AbstractMinimesosMojo() {
-        mesosClusterState = new MinimesosState<>(MESOS_CLUSTER_KEY);
     }
 
-    protected void startMinimesos(ClusterArchitecture architecture) {
+    protected void startMinimesos(MesosCluster cluster) {
         destroyMinimesos(); // Kill previous minimesos if running
-        MesosCluster mesosCluster = new MesosCluster(architecture);
-        mesosClusterState.put(getPluginContext(), mesosCluster);
-
+        repository.saveClusterFile(cluster);
         getLog().info("Starting minimesos");
-        mesosCluster.start();
+        cluster.start();
+        cluster.waitForState(state -> state != null);
         getLog().info("Started minimesos");
     }
 
     protected void destroyMinimesos() {
-        mesosClusterState.delete(getPluginContext());   // Always delete, no matter what
-        getMinimesosCluster().ifPresent(mesosCluster -> {
-            getLog().info("Stopping minimesos");
-            mesosCluster.stop();
-        });
-    }
-
-    protected Optional<MesosCluster> getMinimesosCluster() {
-        return mesosClusterState.get(getPluginContext());
+        MesosClusterContainersFactory clusterFactory = new MesosClusterContainersFactory();
+        try {
+            MesosCluster cluster = repository.loadCluster(clusterFactory);
+            if (cluster != null) {
+                cluster.destroy(clusterFactory);
+                LOGGER.info("Destroyed minimesos cluster with ID " + cluster.getClusterId());
+            } else {
+                LOGGER.info("Minimesos cluster is not running");
+            }
+        } catch(Exception e) {
+            LOGGER.info("Failed to destroy cluster, perhaps it is not running");
+        }
     }
 }
